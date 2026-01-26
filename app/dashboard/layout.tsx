@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { AuthButton } from "@/components/auth-button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
+import { UserMenu } from "@/components/userMenu";
 
 export default function DashboardLayout({
   children,
@@ -37,7 +38,7 @@ export default function DashboardLayout({
             </nav> */}
 
             <Suspense fallback={null}>
-              <AuthButton />
+              <UserMenu />
             </Suspense>
 
             <ThemeSwitcher />

@@ -33,13 +33,33 @@ export function LoginForm({
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/dashboard");
+
+      const user = data.user;
+      if (!user) throw new Error("Login Failed");
+
+      //check profile
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id",user.id)
+        .single();
+
+      if (profileError) {
+        throw profileError;
+      }
+      if (!profile?.username) {
+        //new user
+        router.replace("/profile/complete-registration");
+      } else {
+        //fully registered
+        router.replace("/dashboard");
+      }
+
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
