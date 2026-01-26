@@ -1,43 +1,73 @@
-import { redirect } from "next/navigation";
-
-import { createClient } from "@/lib/supabase/server";
-import { InfoIcon } from "lucide-react";
-import { FetchDataSteps } from "@/components/tutorial/fetch-data-steps";
+import Link from "next/link";
 import { Suspense } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
-async function UserDetails() {
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.getClaims();
-
-  if (error || !data?.claims) {
-    redirect("/auth/login");
-  }
-
-  return JSON.stringify(data.claims, null, 2);
-}
-
-export default function ProtectedPage() {
+export default function PyQuestDashboard() {
   return (
-    <div className="flex-1 w-full flex flex-col gap-12">
-      <div className="w-full">
-        <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex gap-3 items-center">
-          <InfoIcon size="16" strokeWidth={2} />
-          This is a protected page that you can only see as an authenticated
-          user
+    <div className="min-h-screen flex flex-col">
+
+      {/* MAIN CONTENT */}
+      <main className="flex-1 max-w-6xl mx-auto px-6 py-10">
+        <h2 className="text-2xl font-bold mb-6">Dashboard</h2>
+
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>Python Learning</CardTitle>
+              <CardDescription>
+                Levels, quests, and hands-on coding challenges
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/learn">
+                <Button className="w-full">Start Learning</Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Leaderboards</CardTitle>
+              <CardDescription>
+                See top performers and your rank
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link href="/leaderboards">
+                <Button variant="secondary" className="w-full">
+                  View Leaderboards
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Exams</CardTitle>
+              <CardDescription>
+                Take exams or create one as a teacher
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <Link href="/exams/take">
+                <Button className="w-full">Take Exam</Button>
+              </Link>
+              <Link href="/exams/create">
+                <Button variant="outline" className="w-full">
+                  Create Exam
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
         </div>
-      </div>
-      <div className="flex flex-col gap-2 items-start">
-        <h2 className="font-bold text-2xl mb-4">Your user details</h2>
-        <pre className="text-xs font-mono p-3 rounded border max-h-32 overflow-auto">
-          <Suspense>
-            <UserDetails />
-          </Suspense>
-        </pre>
-      </div>
-      <div>
-        <h2 className="font-bold text-2xl mb-4">Next steps</h2>
-        <FetchDataSteps />
-      </div>
+      </main>
     </div>
   );
 }
