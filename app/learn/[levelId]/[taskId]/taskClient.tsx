@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import Editor from "@monaco-editor/react";
-
+import { runCodeAPI } from "@/lib/executor/runCode";
 type Task = {
   id: number;
   level_id: number;
@@ -36,7 +36,6 @@ export default function TaskClient() {
 
   useEffect(() => {
     async function load() {
-      /* 1. Auth guard */
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -46,7 +45,6 @@ export default function TaskClient() {
         return;
       }
 
-      /* 2. Progression guard */
       const { data: profile } = await supabase
         .from("profiles")
         .select("level")
@@ -58,7 +56,6 @@ export default function TaskClient() {
         return;
       }
 
-      /* 3. Fetch task */
       const { data: task } = await supabase
         .from("tasks")
         .select("*")
@@ -84,16 +81,23 @@ export default function TaskClient() {
     setShowOutput(true);
     setOutput("");
 
-    // 🔧 TEMP MOCK — replace with real execution backend later
-    setTimeout(() => {
-      setOutput(
-        `Output:
-Hello, World!
+    try {
+      const result = await runCodeAPI(code);
 
-Status: Success`
+      if ((result.exit_code ?? 0) === 0) {
+        setOutput(`Output:\n${result.stdout || "(no output)"}`);
+      } else {
+        setOutput(
+          `Error:\n${result.stderr || "Execution failed"}`
+        );
+      }
+    } catch {
+      setOutput(
+        "Error:\nCould not connect to execution server."
       );
+    } finally {
       setIsRunning(false);
-    }, 900);
+    }
   }
 
   if (loading || !task) return null;
@@ -135,7 +139,9 @@ Status: Success`
           <div className="p-4 overflow-y-auto text-sm leading-relaxed space-y-3">
             {activeTab === "task" ? (
               <>
-                <h2 className="text-base font-semibold">{task.title}</h2>
+                <h2 className="text-base font-semibold">
+                  {task.title}
+                </h2>
                 <p>{task.description}</p>
                 <p className="text-xs text-muted-foreground">
                   XP Reward: {task.xp_reward}
