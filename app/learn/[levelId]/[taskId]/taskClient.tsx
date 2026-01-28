@@ -29,6 +29,11 @@ export default function TaskClient() {
   const [activeTab, setActiveTab] = useState<"task" | "tests">("task");
   const [loading, setLoading] = useState(true);
 
+  // Output / execution state
+  const [output, setOutput] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
+  const [showOutput, setShowOutput] = useState(false);
+
   useEffect(() => {
     async function load() {
       /* 1. Auth guard */
@@ -74,48 +79,66 @@ export default function TaskClient() {
     load();
   }, []);
 
+  async function runCode() {
+    setIsRunning(true);
+    setShowOutput(true);
+    setOutput("");
+
+    // 🔧 TEMP MOCK — replace with real execution backend later
+    setTimeout(() => {
+      setOutput(
+        `Output:
+Hello, World!
+
+Status: Success`
+      );
+      setIsRunning(false);
+    }, 900);
+  }
+
   if (loading || !task) return null;
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col bg-muted/30">
       {/* Header */}
-      <div className="border-b px-6 py-3 font-semibold">
-        Level {levelId} · Task {task.id} · {task.title}
+      <div className="px-6 py-3 text-sm bg-background border-b border-border/40">
+        <span className="font-medium">
+          Level {levelId} · {task.title}
+        </span>
+        <span className="ml-2 text-muted-foreground">
+          ({task.difficulty})
+        </span>
       </div>
 
-      {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* Main */}
+      <div className="flex flex-1 gap-4 p-4 overflow-hidden">
         {/* Left Panel */}
-        <div className="w-[40%] border-r flex flex-col">
+        <div className="w-[36%] bg-background rounded-xl border border-border/40 shadow-sm flex flex-col">
           {/* Tabs */}
-          <div className="flex border-b">
-            <button
-              className={`px-4 py-2 text-sm ${
-                activeTab === "task" ? "border-b-2 border-primary" : ""
-              }`}
-              onClick={() => setActiveTab("task")}
-            >
-              Task
-            </button>
-            <button
-              className={`px-4 py-2 text-sm ${
-                activeTab === "tests" ? "border-b-2 border-primary" : ""
-              }`}
-              onClick={() => setActiveTab("tests")}
-            >
-              Testcases
-            </button>
+          <div className="flex gap-1 p-2 border-b border-border/40">
+            {["task", "tests"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab as any)}
+                className={`px-3 py-1.5 text-sm rounded-md transition ${
+                  activeTab === tab
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {tab === "task" ? "Description" : "Testcases"}
+              </button>
+            ))}
           </div>
 
-          {/* Tab Content */}
-          <div className="p-4 overflow-y-auto text-sm space-y-3">
+          {/* Content */}
+          <div className="p-4 overflow-y-auto text-sm leading-relaxed space-y-3">
             {activeTab === "task" ? (
               <>
-                <h2 className="font-semibold text-base">{task.title}</h2>
+                <h2 className="text-base font-semibold">{task.title}</h2>
                 <p>{task.description}</p>
-
-                <p className="text-muted-foreground text-xs mt-2">
-                  Difficulty: {task.difficulty} · XP: {task.xp_reward}
+                <p className="text-xs text-muted-foreground">
+                  XP Reward: {task.xp_reward}
                 </p>
               </>
             ) : (
@@ -128,21 +151,20 @@ Input:
 Output:
 (expected output)
                 </pre>
-
-                <p className="text-muted-foreground text-xs">
-                  Additional hidden testcases will be run on submission.
+                <p className="text-xs text-muted-foreground">
+                  Hidden testcases will be used during submission.
                 </p>
               </>
             )}
           </div>
         </div>
 
-        {/* Right Panel — Monaco Editor */}
-        <div className="flex-1">
+        {/* Right Panel — Editor */}
+        <div className="flex-1 bg-background rounded-xl border border-border/40 shadow-sm overflow-hidden">
           <Editor
             height="100%"
             defaultLanguage="python"
-            theme="vs-dark" //add conditional rendering later
+            theme="vs-dark"
             value={code}
             onChange={(value) => setCode(value || "")}
             options={{
@@ -161,16 +183,28 @@ Output:
         </div>
       </div>
 
+      {/* Output Panel */}
+      {showOutput && (
+        <div className="mx-4 mb-2 bg-background border border-border/40 rounded-xl shadow-sm overflow-hidden">
+          <div className="px-4 py-2 text-sm font-medium border-b border-border/40">
+            Output
+          </div>
+          <pre className="p-4 text-sm font-mono whitespace-pre-wrap">
+            {isRunning ? "Running..." : output || "No output"}
+          </pre>
+        </div>
+      )}
+
       {/* Action Bar */}
-      <div className="border-t px-6 py-3 flex gap-3">
-        <Button variant="secondary">Run Code</Button>
-        <Button>Submit</Button>
+      <div className="px-6 py-3 flex justify-end gap-3 bg-background/80 backdrop-blur border-t border-border/40">
         <Button
-          variant="outline"
-          onClick={() => setCode(task.starter_code || "")}
+          variant="secondary"
+          onClick={runCode}
+          disabled={isRunning}
         >
-          Reset
+          {isRunning ? "Running..." : "Run"}
         </Button>
+        <Button className="px-6">Submit</Button>
       </div>
     </div>
   );
