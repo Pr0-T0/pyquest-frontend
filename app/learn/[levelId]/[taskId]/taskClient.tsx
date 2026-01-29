@@ -83,8 +83,9 @@ export default function TaskClient() {
 
     try {
       const result = await runCodeAPI(code);
+      console.log(result)
 
-      if ((result.exit_code ?? 0) === 0) {
+      if (result.success ) {
         setOutput(`Output:\n${result.stdout || "(no output)"}`);
       } else {
         setOutput(

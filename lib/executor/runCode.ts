@@ -1,7 +1,7 @@
 export type RunCodeResult = {
   stdout?: string;
   stderr?: string;
-  exit_code?: number;
+  success?: boolean;
 };
 
 export async function runCodeAPI(
