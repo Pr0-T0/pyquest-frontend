@@ -6,6 +6,16 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import Editor from "@monaco-editor/react";
 import { runCodeAPI } from "@/lib/executor/runCode";
+
+type Testcase = {
+  id: number;
+  input: string;
+  expected_output: string;
+  order_index: number;
+};
+
+
+
 type Task = {
   id: number;
   level_id: number;
@@ -28,6 +38,7 @@ export default function TaskClient() {
   const [code, setCode] = useState("");
   const [activeTab, setActiveTab] = useState<"task" | "tests">("task");
   const [loading, setLoading] = useState(true);
+  const [testcases, setTestcases] = useState<Testcase[]>([]);
 
   // Output / execution state
   const [output, setOutput] = useState("");
@@ -68,8 +79,16 @@ export default function TaskClient() {
         return;
       }
 
+      const { data: samples} = await supabase
+        .from("testcases")
+        .select("id,input, expected_output, order_index")
+        .eq("task_id", taskId)
+        .eq("is_hidden", false)
+        .order("order_index");
+
       setTask(task);
       setCode(task.starter_code || "");
+      setTestcases(samples || []);
       setLoading(false);
     }
 
@@ -150,18 +169,43 @@ export default function TaskClient() {
               </>
             ) : (
               <>
-                <p className="font-medium">Sample Testcases</p>
-                <pre className="bg-muted p-3 rounded text-xs">
-Input:
-(example input)
+  <p className="font-medium">Sample Testcases</p>
 
-Output:
-(expected output)
-                </pre>
-                <p className="text-xs text-muted-foreground">
-                  Hidden testcases will be used during submission.
-                </p>
-              </>
+  {testcases.length === 0 && (
+    <p className="text-xs text-muted-foreground">
+      No sample testcases available.
+    </p>
+  )}
+
+  {testcases.map((tc, index) => (
+    <div
+      key={tc.id}
+      className="bg-muted p-3 rounded text-xs space-y-2"
+    >
+      <p className="font-semibold">
+        Testcase {index + 1}
+      </p>
+
+      <div>
+        <p className="font-medium">Input:</p>
+        <pre className="whitespace-pre-wrap">
+          {tc.input}
+        </pre>
+      </div>
+
+      <div>
+        <p className="font-medium">Output:</p>
+        <pre className="whitespace-pre-wrap">
+          {tc.expected_output}
+        </pre>
+      </div>
+    </div>
+  ))}
+
+  <p className="text-xs text-muted-foreground">
+    Hidden testcases will be used during submission.
+  </p>
+</>
             )}
           </div>
         </div>
