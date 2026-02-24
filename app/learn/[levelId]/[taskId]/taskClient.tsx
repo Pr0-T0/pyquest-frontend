@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import Editor from "@monaco-editor/react";
 import { runCodeAPI } from "@/lib/executor/runCode";
+import { submitCodeAPI } from "@/lib/executor/submitCode";
 
 type Testcase = {
   id: number;
@@ -25,6 +26,8 @@ type Task = {
   xp_reward: number;
   starter_code: string | null;
 };
+
+
 
 export default function TaskClient() {
   const supabase = createClient();
@@ -95,30 +98,81 @@ export default function TaskClient() {
     load();
   }, []);
 
-  async function runCode() {
-    setIsRunning(true);
-    setShowOutput(true);
-    setOutput("");
+async function runCode() {
+  setIsRunning(true);
+  setShowOutput(true);
+  setOutput("");
 
-    try {
-      const result = await runCodeAPI(code);
-      console.log(result)
+  try {
+    // Use first visible sample testcase input
+    const sampleInput = testcases[0]?.input ?? "";
 
-      if (result.success ) {
-        setOutput(`Output:\n${result.stdout || "(no output)"}`);
-      } else {
-        setOutput(
-          `Error:\n${result.stderr || "Execution failed"}`
-        );
-      }
-    } catch {
+    const result = await runCodeAPI(code, sampleInput);
+    console.log(result);
+
+    if (result.success) {
+      setOutput(`Output:\n${result.stdout || "(no output)"}`);
+    } else {
       setOutput(
-        "Error:\nCould not connect to execution server."
+        `Error:\n${result.stderr || "Execution failed"}`
       );
-    } finally {
-      setIsRunning(false);
     }
+  } catch {
+    setOutput(
+      "Error:\nCould not connect to execution server."
+    );
+  } finally {
+    setIsRunning(false);
   }
+}
+
+  async function submitCode() {
+  setIsRunning(true);
+  setShowOutput(true);
+  setOutput("Judging...");
+
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const result = await submitCodeAPI(
+      code,
+      taskId,
+      user?.id
+    );
+
+    if (!result.success) {
+      setOutput("Server error: " + (result.error || "Unknown error"));
+      return;
+    }
+
+    if (result.verdict === "Accepted") {
+      setOutput(
+        `Accepted\n\nPassed ${result.passed}/${result.total} testcases`
+      );
+    } else if (result.verdict === "Wrong Answer") {
+      setOutput(
+        `Wrong Answer on testcase ${result.failed_at}\n\n` +
+        `Input: ${result.input}\n` +
+        `Expected: ${result.expected}\n` +
+        `Got: ${result.output}`
+      );
+    } else if (result.verdict === "Runtime Error") {
+      setOutput(
+        `⚠ Runtime Error on testcase ${result.failed_at}\n\n` +
+        result.error
+      );
+    } else {
+      setOutput("Unexpected response from judge.");
+    }
+
+  } catch {
+    setOutput("Could not connect to judge server.");
+  } finally {
+    setIsRunning(false);
+  }
+}
 
   if (loading || !task) return null;
 
@@ -255,7 +309,13 @@ export default function TaskClient() {
         >
           {isRunning ? "Running..." : "Run"}
         </Button>
-        <Button className="px-6">Submit</Button>
+        <Button 
+          className="px-6"
+          onClick={submitCode}
+          disabled={isRunning}
+        >
+          {isRunning ? "Judging..." : "Submit"}
+        </Button>
       </div>
     </div>
   );
