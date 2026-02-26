@@ -56,10 +56,10 @@ export default function PyQuestDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
-              <Link href="/exams/take">
+              <Link href="/take-exam">
                 <Button className="w-full">Take Exam</Button>
               </Link>
-              <Link href="/exams/create">
+              <Link href="/create-exam">
                 <Button variant="outline" className="w-full">
                   Create Exam
                 </Button>
