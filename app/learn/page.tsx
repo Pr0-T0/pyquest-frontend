@@ -2,13 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 type Level = {
@@ -34,7 +29,6 @@ export default function LearnPage() {
 
   useEffect(() => {
     async function load() {
-      /* 1. Fetch levels (PUBLIC) */
       const { data: levels } = await supabase
         .from("levels")
         .select("id,title,description,difficulty")
@@ -42,7 +36,6 @@ export default function LearnPage() {
 
       setLevels(levels || []);
 
-      /* 2. Check auth */
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -54,7 +47,6 @@ export default function LearnPage() {
 
       setIsAuthed(true);
 
-      /* 3. Fetch profile level */
       const { data: profile } = await supabase
         .from("profiles")
         .select("level")
@@ -64,7 +56,6 @@ export default function LearnPage() {
       const unlockedLevel = profile?.level ?? 1;
       setCurrentLevel(unlockedLevel);
 
-      /* 4. Fetch tasks + completions */
       const { data: tasks } = await supabase
         .from("tasks")
         .select("id, level_id");
@@ -104,26 +95,54 @@ export default function LearnPage() {
 
   if (loading) return null;
 
+  /* ---------------- Animations ---------------- */
+
+  const container = {
+    hidden: {},
+    show: {
+      transition: { staggerChildren: 0.08 },
+    },
+  };
+
+  const fadeUp = {
+    hidden: { opacity: 0, y: 30 },
+    show: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5 },
+    },
+  };
+
   return (
-    <div className="max-w-4xl mx-auto px-6 py-10">
-      <h1 className="text-3xl font-bold mb-6">Learning Path</h1>
+  <div className="max-w-5xl mx-auto px-6 py-16">
 
-      {!isAuthed && (
-        <div className="mb-6 p-4 border rounded bg-muted">
-          <p className="mb-3">
-            Sign in to start solving challenges and track your progress.
-          </p>
-          <Link href="/login">
-            <Button>Sign in to start</Button>
-          </Link>
-        </div>
-      )}
+    <h1 className="text-4xl font-bold mb-16 text-center">
+      Your Learning Journey
+    </h1>
 
-      <div className="space-y-4">
-        {levels.map((level) => {
+    <div className="relative">
+
+      {/* Vertical line */}
+      <div
+        className="
+          absolute
+          top-0
+          bottom-0
+          w-[4px]
+          bg-muted
+          left-4
+          md:left-1/2
+          md:-translate-x-1/2
+        "
+      />
+
+      <div className="space-y-16">
+        {levels.map((level, index) => {
           const levelProgress = progress[level.id];
           const total = levelProgress?.totalTasks ?? 0;
           const completed = levelProgress?.completedTasks ?? 0;
+          const percent =
+            total > 0 ? Math.round((completed / total) * 100) : 0;
 
           const isCompleted =
             isAuthed && currentLevel !== null && level.id < currentLevel;
@@ -136,57 +155,159 @@ export default function LearnPage() {
               ? level.id > currentLevel
               : !isAuthed;
 
+          const isLeft = index % 2 === 0;
+
           return (
-            <Card
+            <motion.div
               key={level.id}
-              className={`border ${
-                isCurrent
-                  ? "border-primary"
-                  : isCompleted
-                  ? "opacity-80"
-                  : "opacity-40"
-              }`}
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+              className={`
+                relative
+                flex
+                flex-col
+                md:flex-row
+                ${isLeft ? "md:justify-start" : "md:justify-end"}
+              `}
             >
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>
-                    Level {level.id}: {level.title}
-                  </CardTitle>
-                  <CardDescription>
-                    {level.description || "Complete all tasks to advance"}
-                  </CardDescription>
+              {/* Node */}
+              <div
+                className={`
+                  absolute
+                  left-4
+                  md:left-1/2
+                  md:-translate-x-1/2
+                  w-10
+                  h-10
+                  rounded-full
+                  flex
+                  items-center
+                  justify-center
+                  text-sm
+                  font-bold
+                  border
+                  shadow
+                  ${
+                    isCompleted
+                      ? "bg-green-500 text-white border-green-500"
+                      : isCurrent
+                      ? "bg-indigo-500 text-white border-indigo-500"
+                      : "bg-background border-muted"
+                  }
+                `}
+              >
+                {level.id}
+              </div>
 
-                  {isAuthed && total > 0 && (
-                    <p className="text-sm mt-2 text-muted-foreground">
-                      {completed} / {total} tasks completed
-                    </p>
-                  )}
-                </div>
+              {/* Card */}
+              <div
+                className={`
+                  mt-14 md:mt-0
+                  ml-14 md:ml-0
+                  md:w-[45%]
+                  p-6
+                  rounded-2xl
+                  border
+                  shadow-sm
+                  transition
+                  ${
+                    isCurrent
+                      ? "border-indigo-500 bg-indigo-500/10"
+                      : isCompleted
+                      ? "border-green-500 bg-green-500/10"
+                      : "border-muted bg-muted/30"
+                  }
+                  ${isLocked ? "opacity-40" : ""}
+                `}
+              >
+                <h2 className="font-semibold text-lg mb-2">
+                  Level {level.id}: {level.title}
+                </h2>
 
+                <p className="text-sm text-muted-foreground mb-4">
+                  {level.description || "Complete tasks to advance"}
+                </p>
+
+                {/* Circular Progress */}
+                {isAuthed && total > 0 && (
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="relative w-12 h-12">
+                      <svg
+                        viewBox="0 0 36 36"
+                        className="w-full h-full rotate-[-90deg]"
+                      >
+                        <circle
+                          cx="18"
+                          cy="18"
+                          r="16"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="none"
+                          className="text-muted"
+                        />
+                        <motion.circle
+                          cx="18"
+                          cy="18"
+                          r="16"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                          fill="none"
+                          strokeDasharray="100"
+                          initial={{ strokeDashoffset: 100 }}
+                          animate={{
+                            strokeDashoffset: 100 - percent,
+                          }}
+                          transition={{ duration: 0.8 }}
+                          className={`${
+                            isCompleted
+                              ? "text-green-500"
+                              : isCurrent
+                              ? "text-indigo-500"
+                              : "text-muted-foreground"
+                          }`}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center text-xs font-semibold">
+                        {percent}%
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-muted-foreground">
+                      {completed} / {total} tasks
+                    </div>
+                  </div>
+                )}
+
+                {/* Button */}
                 {isAuthed ? (
                   isCompleted ? (
-                    <span className="text-green-600 font-semibold">
+                    <span className="text-green-600 text-sm font-medium">
                       Completed
                     </span>
                   ) : isCurrent ? (
                     <Link href={`/learn/${level.id}`}>
-                      <Button>Continue</Button>
+                      <Button size="sm">Enter Level</Button>
                     </Link>
                   ) : (
-                    <Button disabled variant="secondary">
+                    <Button size="sm" disabled variant="secondary">
                       Locked
                     </Button>
                   )
                 ) : (
                   <Link href="/login">
-                    <Button variant="secondary">Sign in</Button>
+                    <Button size="sm" variant="secondary">
+                      Sign in
+                    </Button>
                   </Link>
                 )}
-              </CardHeader>
-            </Card>
+              </div>
+            </motion.div>
           );
         })}
       </div>
     </div>
-  );
+  </div>
+);
 }
