@@ -3,6 +3,7 @@ import { Geist } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import BackgroundWrapper from "@/components/ui/background-wrapper";
+import { Suspense } from "react";
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
@@ -34,8 +35,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {/* Animated Background */}
-          <BackgroundWrapper />
+          <Suspense fallback={null}>
+            <BackgroundWrapper />
+          </Suspense>
 
           {/* Page Content */}
           <div className="relative z-10">
