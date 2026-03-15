@@ -33,98 +33,158 @@ export default function CreateExamPage() {
   const [loading, setLoading] = useState(false);
 
   const addQuestion = () => {
-    setQuestions([
-      ...questions,
+    setQuestions(prev => [
+      ...prev,
       {
         title: "",
         description: "",
         difficulty: "easy",
         points: 100,
         starter_code: "",
-        testcases: [],
-      },
+        testcases: []
+      }
     ]);
   };
 
+  const removeQuestion = (index: number) => {
+    setQuestions(prev => prev.filter((_, i) => i !== index));
+  };
+
   const addTestCase = (qIndex: number) => {
-    const updated = [...questions];
-    updated[qIndex].testcases.push({
-      input: "",
-      expected_output: "",
-      is_hidden: false,
-    });
-    setQuestions(updated);
+    setQuestions(prev =>
+      prev.map((q, i) =>
+        i === qIndex
+          ? {
+              ...q,
+              testcases: [
+                ...q.testcases,
+                { input: "", expected_output: "", is_hidden: false }
+              ]
+            }
+          : q
+      )
+    );
+  };
+
+  const removeTestCase = (qIndex: number, tcIndex: number) => {
+    setQuestions(prev =>
+      prev.map((q, i) =>
+        i === qIndex
+          ? {
+              ...q,
+              testcases: q.testcases.filter((_, j) => j !== tcIndex)
+            }
+          : q
+      )
+    );
+  };
+
+  const updateQuestion = (index: number, field: keyof Question, value: any) => {
+    setQuestions(prev =>
+      prev.map((q, i) =>
+        i === index ? { ...q, [field]: value } : q
+      )
+    );
+  };
+
+  const updateTestCase = (
+    qIndex: number,
+    tcIndex: number,
+    field: keyof TestCase,
+    value: any
+  ) => {
+    setQuestions(prev =>
+      prev.map((q, i) => {
+        if (i !== qIndex) return q;
+
+        const updatedTC = q.testcases.map((tc, j) =>
+          j === tcIndex ? { ...tc, [field]: value } : tc
+        );
+
+        return { ...q, testcases: updatedTC };
+      })
+    );
   };
 
   const handleCreateExam = async () => {
     try {
-      setLoading(true);
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        alert("Not authenticated");
+      if (!title.trim()) {
+        alert("Exam title required");
         return;
       }
 
-      // 1️⃣ Create Exam
+      if (questions.length === 0) {
+        alert("Add at least one question");
+        return;
+      }
+
+      setLoading(true);
+
+      const {
+        data: { user }
+      } = await supabase.auth.getUser();
+
+      if (!user) throw new Error("Not authenticated");
+
+      // 1️⃣ Create exam
       const { data: exam, error: examError } = await supabase
         .from("exams")
-        .insert([
-          {
-            title,
-            description,
-            created_by: user.id,
-            is_public: isPublic,
-            access_code: isPublic ? null : accessCode,
-            time_limit_minutes: timeLimit,
-          },
-        ])
+        .insert({
+          title,
+          description,
+          created_by: user.id,
+          is_public: isPublic,
+          access_code: isPublic ? null : accessCode,
+          time_limit_minutes: timeLimit
+        })
         .select()
         .single();
 
       if (examError) throw examError;
 
-      // 2️⃣ Insert Questions
-      for (const question of questions) {
-        const { data: examTask, error: taskError } = await supabase
-          .from("exam_tasks")
-          .insert([
-            {
-              exam_id: exam.id,
-              title: question.title,
-              description: question.description,
-              difficulty: question.difficulty,
-              starter_code: question.starter_code,
-              points: question.points,
-            },
-          ])
-          .select()
-          .single();
+      // 2️⃣ Insert tasks
+      const questionPayload = questions.map(q => ({
+        exam_id: exam.id,
+        title: q.title,
+        description: q.description,
+        difficulty: q.difficulty,
+        starter_code: q.starter_code,
+        points: q.points
+      }));
 
-        if (taskError) throw taskError;
+      const { data: insertedQuestions, error: taskError } = await supabase
+        .from("exam_tasks")
+        .insert(questionPayload)
+        .select();
 
-        // 3️⃣ Insert Testcases
-        const testcasesPayload = question.testcases.map((tc, index) => ({
-          exam_task_id: examTask.id,
-          input: tc.input,
-          expected_output: tc.expected_output,
-          is_hidden: tc.is_hidden,
-          order_index: index,
-        }));
+      if (taskError) throw taskError;
 
-        if (testcasesPayload.length > 0) {
-          const { error: tcError } = await supabase
-            .from("exam_testcases")
-            .insert(testcasesPayload);
+      // 3️⃣ Insert testcases
+      const testcasePayload: any[] = [];
 
-          if (tcError) throw tcError;
-        }
+      insertedQuestions.forEach((task, i) => {
+        const q = questions[i];
+
+        q.testcases.forEach((tc, index) => {
+          testcasePayload.push({
+            exam_task_id: task.id,
+            input: tc.input,
+            expected_output: tc.expected_output,
+            is_hidden: tc.is_hidden,
+            order_index: index
+          });
+        });
+      });
+
+      if (testcasePayload.length > 0) {
+        const { error } = await supabase
+          .from("exam_testcases")
+          .insert(testcasePayload);
+
+        if (error) throw error;
       }
 
-      alert("Exam Created Successfully!");
+      alert("Exam created successfully!");
       router.push(`/exams/${exam.id}`);
     } catch (err: any) {
       console.error(err);
@@ -135,164 +195,223 @@ export default function CreateExamPage() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">Create Exam</h1>
+    <div className="max-w-5xl mx-auto p-8 space-y-8 text-white">
 
-      <input
-        className="border p-2 w-full mb-3"
-        placeholder="Exam Title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
+      <h1 className="text-3xl font-bold">Create Coding Exam</h1>
 
-      <textarea
-        className="border p-2 w-full mb-3"
-        placeholder="Description"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-      />
+      {/* Exam Info */}
+      <div className="bg-gray-900/80 border border-gray-700 rounded-xl p-6 space-y-4 backdrop-blur">
 
-      <div className="mb-3">
-        <label>
-          <input
-            type="checkbox"
-            checked={isPublic}
-            onChange={(e) => setIsPublic(e.target.checked)}
-          />
-          Public Exam
-        </label>
-      </div>
-
-      {!isPublic && (
         <input
-          className="border p-2 w-full mb-3"
-          placeholder="Access Code"
-          value={accessCode}
-          onChange={(e) => setAccessCode(e.target.value)}
+          className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Exam Title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
         />
-      )}
 
-      <input
-        type="number"
-        className="border p-2 w-full mb-4"
-        placeholder="Time Limit (minutes)"
-        value={timeLimit}
-        onChange={(e) => setTimeLimit(Number(e.target.value))}
-      />
+        <textarea
+          className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 min-h-[120px] focus:ring-2 focus:ring-blue-500"
+          placeholder="Exam Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
 
-      <button
-        onClick={addQuestion}
-        className="bg-blue-500 text-white px-4 py-2 mb-4"
-      >
-        Add Question
-      </button>
+        <div className="flex flex-wrap gap-6 items-center">
 
-      {questions.map((q, qIndex) => (
-        <div key={qIndex} className="border p-4 mb-4">
-          <h2 className="font-semibold mb-2">Question {qIndex + 1}</h2>
+          <label className="flex items-center gap-2 text-gray-300">
+            <input
+              type="checkbox"
+              checked={isPublic}
+              onChange={(e) => setIsPublic(e.target.checked)}
+            />
+            Public Exam
+          </label>
 
-          <input
-            className="border p-2 w-full mb-2"
-            placeholder="Title"
-            value={q.title}
-            onChange={(e) => {
-              const updated = [...questions];
-              updated[qIndex].title = e.target.value;
-              setQuestions(updated);
-            }}
-          />
-
-          <textarea
-            className="border p-2 w-full mb-2"
-            placeholder="Description"
-            value={q.description}
-            onChange={(e) => {
-              const updated = [...questions];
-              updated[qIndex].description = e.target.value;
-              setQuestions(updated);
-            }}
-          />
-
-          <textarea
-            className="border p-2 w-full mb-2"
-            placeholder="Starter Code"
-            value={q.starter_code}
-            onChange={(e) => {
-              const updated = [...questions];
-              updated[qIndex].starter_code = e.target.value;
-              setQuestions(updated);
-            }}
-          />
+          {!isPublic && (
+            <input
+              className="bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2"
+              placeholder="Access Code"
+              value={accessCode}
+              onChange={(e) => setAccessCode(e.target.value)}
+            />
+          )}
 
           <input
             type="number"
-            className="border p-2 w-full mb-2"
-            placeholder="Points"
-            value={q.points}
-            onChange={(e) => {
-              const updated = [...questions];
-              updated[qIndex].points = Number(e.target.value);
-              setQuestions(updated);
-            }}
+            className="bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 w-40"
+            placeholder="Time (min)"
+            value={timeLimit}
+            onChange={(e) => setTimeLimit(Number(e.target.value))}
           />
-
-          <button
-            onClick={() => addTestCase(qIndex)}
-            className="bg-green-500 text-white px-3 py-1 mb-2"
-          >
-            Add Testcase
-          </button>
-
-          {q.testcases.map((tc, tcIndex) => (
-            <div key={tcIndex} className="border p-2 mb-2">
-              <textarea
-                className="border p-2 w-full mb-1"
-                placeholder="Input"
-                value={tc.input}
-                onChange={(e) => {
-                  const updated = [...questions];
-                  updated[qIndex].testcases[tcIndex].input = e.target.value;
-                  setQuestions(updated);
-                }}
-              />
-
-              <textarea
-                className="border p-2 w-full mb-1"
-                placeholder="Expected Output"
-                value={tc.expected_output}
-                onChange={(e) => {
-                  const updated = [...questions];
-                  updated[qIndex].testcases[tcIndex].expected_output =
-                    e.target.value;
-                  setQuestions(updated);
-                }}
-              />
-
-              <label>
-                <input
-                  type="checkbox"
-                  checked={tc.is_hidden}
-                  onChange={(e) => {
-                    const updated = [...questions];
-                    updated[qIndex].testcases[tcIndex].is_hidden =
-                      e.target.checked;
-                    setQuestions(updated);
-                  }}
-                />
-                Hidden Testcase
-              </label>
-            </div>
-          ))}
         </div>
-      ))}
+      </div>
+
+      {/* Questions */}
+      <div className="space-y-6">
+
+        {questions.map((q, qIndex) => (
+          <div
+            key={qIndex}
+            className="bg-gray-900/80 border border-gray-700 rounded-xl p-6 space-y-4 backdrop-blur"
+          >
+            <div className="flex justify-between items-center">
+              <h2 className="font-semibold text-lg">
+                Question {qIndex + 1}
+              </h2>
+
+              <button
+                onClick={() => removeQuestion(qIndex)}
+                className="text-red-400 hover:text-red-500"
+              >
+                Remove
+              </button>
+            </div>
+
+            <input
+              className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2"
+              placeholder="Question Title"
+              value={q.title}
+              onChange={(e) =>
+                updateQuestion(qIndex, "title", e.target.value)
+              }
+            />
+
+            <textarea
+              className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 min-h-[120px]"
+              placeholder="Problem Description"
+              value={q.description}
+              onChange={(e) =>
+                updateQuestion(qIndex, "description", e.target.value)
+              }
+            />
+
+            <textarea
+              className="w-full bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 min-h-[140px] font-mono"
+              placeholder="Starter Code"
+              value={q.starter_code}
+              onChange={(e) =>
+                updateQuestion(qIndex, "starter_code", e.target.value)
+              }
+            />
+
+            <div className="flex gap-4">
+
+              <select
+                className="bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2"
+                value={q.difficulty}
+                onChange={(e) =>
+                  updateQuestion(qIndex, "difficulty", e.target.value)
+                }
+              >
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+
+              <input
+                type="number"
+                className="bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 w-32"
+                value={q.points}
+                onChange={(e) =>
+                  updateQuestion(qIndex, "points", Number(e.target.value))
+                }
+              />
+            </div>
+
+            {/* Testcases */}
+            <div className="space-y-4">
+
+              <button
+                onClick={() => addTestCase(qIndex)}
+                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg"
+              >
+                Add Testcase
+              </button>
+
+              {q.testcases.map((tc, tcIndex) => (
+                <div
+                  key={tcIndex}
+                  className="border border-gray-700 rounded-lg p-4 bg-gray-800 space-y-2"
+                >
+                  <textarea
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-3 py-2"
+                    placeholder="Input"
+                    value={tc.input}
+                    onChange={(e) =>
+                      updateTestCase(
+                        qIndex,
+                        tcIndex,
+                        "input",
+                        e.target.value
+                      )
+                    }
+                  />
+
+                  <textarea
+                    className="w-full bg-gray-900 border border-gray-700 text-white rounded-lg px-3 py-2"
+                    placeholder="Expected Output"
+                    value={tc.expected_output}
+                    onChange={(e) =>
+                      updateTestCase(
+                        qIndex,
+                        tcIndex,
+                        "expected_output",
+                        e.target.value
+                      )
+                    }
+                  />
+
+                  <div className="flex justify-between items-center">
+
+                    <label className="flex items-center gap-2 text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={tc.is_hidden}
+                        onChange={(e) =>
+                          updateTestCase(
+                            qIndex,
+                            tcIndex,
+                            "is_hidden",
+                            e.target.checked
+                          )
+                        }
+                      />
+                      Hidden
+                    </label>
+
+                    <button
+                      onClick={() =>
+                        removeTestCase(qIndex, tcIndex)
+                      }
+                      className="text-red-400 hover:text-red-500"
+                    >
+                      Remove
+                    </button>
+
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        <button
+          onClick={addQuestion}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
+        >
+          Add Question
+        </button>
+
+      </div>
 
       <button
         onClick={handleCreateExam}
         disabled={loading}
-        className="bg-purple-600 text-white px-6 py-2"
+        className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold"
       >
         {loading ? "Creating..." : "Create Exam"}
       </button>
+
     </div>
   );
 }
