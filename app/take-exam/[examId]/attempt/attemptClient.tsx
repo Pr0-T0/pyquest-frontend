@@ -103,104 +103,47 @@ export default function AttemptClient() {
     );
 
   return (
-    <div className="flex h-screen bg-gray-200">
+  <div className="h-screen flex flex-col bg-gray-100 text-gray-900">
 
-      {/* LEFT SIDEBAR */}
-      <div className="w-72 bg-white shadow-md flex flex-col">
+    {/* TOP BAR - QUESTIONS */}
+    <div className="bg-white border-b px-4 py-2 flex gap-3 overflow-x-auto">
+      {tasks.map((task, index) => (
+        <button
+          key={task.id}
+          onClick={() => selectTask(task)}
+          className={`px-4 py-2 rounded text-sm font-medium ${
+            selectedTask?.id === task.id
+              ? "bg-blue-600 text-white"
+              : "bg-gray-200 hover:bg-gray-300"
+          }`}
+        >
+          Q{index + 1}
+        </button>
+      ))}
+    </div>
 
-        <div className="p-5 border-b font-semibold text-lg">
-          Questions
-        </div>
+    {/* MAIN SPLIT */}
+    <div className="flex flex-1 overflow-hidden">
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {tasks.map((task, index) => (
-            <div
-              key={task.id}
-              onClick={() => selectTask(task)}
-              className={`p-4 rounded-lg cursor-pointer transition-all ${
-                selectedTask?.id === task.id
-                  ? "bg-blue-50 border border-blue-400 shadow-sm"
-                  : "hover:bg-gray-100"
-              }`}
-            >
-              <div className="font-medium text-sm">
-                {index + 1}. {task.title}
-              </div>
+      {/* LEFT - DESCRIPTION */}
+      <div className="w-1/2 bg-white border-r flex flex-col">
 
-              <div className="text-xs text-gray-500 mt-1">
-                {task.difficulty} • {task.points} pts
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* RIGHT MAIN PANEL */}
-      <div className="flex-1 flex flex-col min-h-0">
-
-        {/* PROBLEM DESCRIPTION */}
-        <div className="bg-white shadow-sm border-b p-6 max-h-64 overflow-y-auto">
-          <h2 className="text-2xl font-bold">
+        <div className="p-4 border-b">
+          <h2 className="text-xl font-bold">
             {selectedTask?.title}
           </h2>
-
-          <p className="mt-4 text-sm text-gray-700 whitespace-pre-line">
-            {selectedTask?.description}
-          </p>
         </div>
 
-        {/* SAMPLE TESTCASES */}
-        <div className="bg-gray-50 border-b p-6 max-h-48 overflow-y-auto">
-          <h3 className="font-semibold mb-3">
-            Sample Testcases
-          </h3>
-
-          {testcases.filter(tc => !tc.is_hidden).length === 0 && (
-            <p className="text-sm text-gray-500">
-              No sample testcases available.
-            </p>
-          )}
-
-          {testcases
-            .filter(tc => !tc.is_hidden)
-            .map((tc) => (
-              <div
-                key={tc.id}
-                className="mb-3 bg-white border rounded-lg p-3 text-sm shadow-sm"
-              >
-                <p>
-                  <strong>Input:</strong> {tc.input}
-                </p>
-                <p>
-                  <strong>Expected:</strong> {tc.expected_output}
-                </p>
-              </div>
-            ))}
+        <div className="p-4 overflow-y-auto text-sm">
+          {selectedTask?.description}
         </div>
 
-        {/* EXECUTION RESULTS */}
-        {results.length > 0 && (
-          <div className="bg-white border-b p-4 text-sm">
-            <h3 className="font-semibold mb-2">
-              Results
-            </h3>
+      </div>
 
-            {results.map((r, i) => (
-              <div
-                key={i}
-                className={`mb-1 ${
-                  r.passed ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                Testcase {i + 1}:{" "}
-                {r.passed ? "Passed" : "Failed"}
-              </div>
-            ))}
-          </div>
-        )}
+      {/* RIGHT - EDITOR */}
+      <div className="w-1/2 flex flex-col">
 
-        {/* EDITOR */}
-        <div className="flex-1 min-h-0">
+        <div className="flex-1">
           <Editor
             height="100%"
             language="python"
@@ -210,23 +153,52 @@ export default function AttemptClient() {
           />
         </div>
 
-        {/* ACTION BAR */}
-        <div className="bg-white border-t p-4 flex gap-4 shadow-inner">
-          <button
-            onClick={handleRun}
-            className="bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-2 rounded-lg font-medium transition"
-          >
-            Run
-          </button>
-
-          <button
-            onClick={handleSubmit}
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-medium transition"
-          >
-            Submit
-          </button>
-        </div>
       </div>
     </div>
-  );
+
+    {/* BOTTOM PANEL - TESTCASES + RESULTS */}
+    <div className="bg-white border-t p-4 max-h-52 overflow-y-auto">
+
+      <h3 className="font-semibold mb-2">Testcases</h3>
+
+      {testcases.filter(tc => !tc.is_hidden).map(tc => (
+        <div key={tc.id} className="mb-2 border rounded p-2 text-sm">
+          <p><strong>Input:</strong> {tc.input}</p>
+          <p><strong>Expected:</strong> {tc.expected_output}</p>
+        </div>
+      ))}
+
+      {results.length > 0 && (
+        <>
+          <h3 className="font-semibold mt-3 mb-1">Results</h3>
+          {results.map((r, i) => (
+            <div key={i}>
+              Testcase {i + 1}:{" "}
+              <span className={r.passed ? "text-green-600" : "text-red-600"}>
+                {r.passed ? "Passed" : "Failed"}
+              </span>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+
+    {/* ACTION BAR */}
+    <div className="bg-white border-t p-3 flex gap-3">
+      <button
+        onClick={handleRun}
+        className="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600"
+      >
+        Run
+      </button>
+
+      <button
+        onClick={handleSubmit}
+        className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+      >
+        Submit
+      </button>
+    </div>
+  </div>
+);
 }
