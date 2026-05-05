@@ -78,7 +78,7 @@ export default function AttemptClient() {
 
   const handleRun = async () => {
     try {
-      const response = await fetch("/api/execute", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_EXECUTOR_URL}/exam/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code, testcases }),
