@@ -127,6 +127,7 @@ export default function PyQuestDashboard() {
 
           {/* LEVEL + XP */}
           <motion.div variants={slideRight} className="col-span-2">
+            <Link href="/activity">
             <Card className="h-full p-6 rounded-3xl bg-zinc-800 text-white flex flex-col justify-center">
               <div className="flex justify-between">
                 <div>
@@ -141,6 +142,7 @@ export default function PyQuestDashboard() {
                 </div>
               </div>
             </Card>
+            </Link>
           </motion.div>
 
           {/* EXAMS */}
