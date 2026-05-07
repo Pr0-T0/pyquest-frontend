@@ -61,7 +61,7 @@ export default function TakeExamPage() {
           <div
             key={exam.id}
             onClick={() => handleClick(exam.id)}
-            className="border p-4 rounded cursor-pointer hover:bg-gray-50"
+            className="border p-4 rounded cursor-pointer hover:bg-gray-900"
           >
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-semibold">{exam.title}</h2>

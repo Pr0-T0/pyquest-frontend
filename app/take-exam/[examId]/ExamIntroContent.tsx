@@ -99,7 +99,7 @@ export default function ExamIntroContent() {
       </p>
 
       {/* Exam Details */}
-      <div className="bg-gray-50 border rounded-lg p-6 mb-6 space-y-3">
+      <div className="bg-gray-900 border rounded-lg p-6 mb-6 space-y-3">
         <div>
           <strong>Time Limit:</strong>{" "}
           {exam.time_limit_minutes ?? "No limit"} minutes
