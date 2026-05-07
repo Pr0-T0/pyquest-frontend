@@ -91,8 +91,58 @@ export default function AttemptClient() {
     }
   };
 
-  const handleSubmit = () => {
-    alert("Submit logic not implemented yet.");
+  const handleSubmit = async () => {
+  try {
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      alert("You must be logged in");
+      return;
+    }
+
+    const answers = tasks.map((task) => ({
+      exam_task_id: task.id,
+      code:
+        task.id === selectedTask?.id
+          ? code
+          : task.starter_code || "",
+    }));
+
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_EXECUTOR_URL}/exam/submit`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          exam_id: examId,
+          user_id: user.id,
+          answers,
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    console.log(result);
+
+    if (!result.success) {
+      alert(result.error || "Submission failed");
+      return;
+    }
+
+    alert(
+      `Exam submitted successfully!\nScore: ${result.total_score}`
+    );
+
+  } catch (error) {
+    console.error("Submit error:", error);
+    alert("Something went wrong");
+  }
   };
 
   if (loading)
